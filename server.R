@@ -1,20 +1,39 @@
+install.packages(rpart) 
+install.packages(rpart.plot)
 library(dplyr)
 library(ggplot2)
 library(shiny)
 library(readr)
+library(tree)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
 
 shinyServer(function(input, output, session) {
   
   #obtains the dataset
   protData <- reactive({
-    pdbdf <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsN-rKzQKEgfY21NtMcMZ-XOtXnA1Vks5b_W0XwA%3D%3D") %>% 
-      filter(classification == input$classification) %>% 
-      filter(structureMolecularWeight < input$MW) %>%
-      filter(resolution <= input$MR)
+    pdbdf <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsNwbLV3IqdGxOrtzA59jwoKcPzI7Rks5cDmMSwA%3D%3D")%>% 
+    filter(classification == input$classification) %>% 
+      filter(structureMolecularWeight  < input$MW) %>%
+        filter(resolution <= input$MR)
   })
+  #dataset2
+  protDataP3 <- reactive({
+    pdbDF1 <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsNwbLV3IqdGxOrtzA59jwoKcPzI7Rks5cDmMSwA%3D%3D")
+    pdbDF1$classification <- as.factor(pdbDF1$classification)
+    pdbDF1 <- pdbDF1[!is.na(pdbDF1$structureMolecularWeight), ]
+    pdbDF1 <- pdbDF1[!is.na(pdbDF1$phValue), ]
+    pdbDF1 <- pdbDF1[!is.na(pdbDF1$densityPercentSol),]
+    pdbDF1 <- pdbDF1[!is.na(pdbDF1$densityMatthews),]
+    pdbDF1 <- pdbDF1[!is.na(pdbDF1$residueCount),]
+    pdbDF1
+  })
+
+  
   #talks about the mean of the enzyme type selected
   output$means <- renderUI({
-    paste("The mean of the enzyme type is",mean(protData()%>% filter(classification == input$classification)
+    paste("The mean of the enzyme type is",mean(protData() %>% filter(classification == input$classification)
                                                 %>% .$structureMolecularWeight)," amu.")
   })
   output$text9 <- renderUI({
@@ -42,6 +61,15 @@ shinyServer(function(input, output, session) {
   
   output$scatter <- renderPlot({
     print(plotdos())
+  })
+  
+  output$plot6 <- renderPlot({
+    protdata <- protDataP3()
+    hierClust <- hclust(dist(data.frame(protdata$structureMolecularWeight, protdata$densityPercentSol, protdata$phValue,
+                                         protdata$densityMatthews,protdata$residueCount)), method = input$method2 )
+    hierClust2 <- cutree(hierClust, k=input$k)
+    ggplot(data = protdata, aes(x=get(input$xvar2), y=get(input$yvar2))) + geom_point(aes(col=as.factor(hierClust2))) + labs(color = "Clusters")
+    
   })
   # most of what's contained in the information tab
   output$infoTab <- renderUI({
@@ -89,9 +117,9 @@ shinyServer(function(input, output, session) {
   )
   #download what you clicked on
   output$downloadClick <- downloadHandler(filename = function() {paste("CRAPPclick", ".csv", sep = "")},
-                                          content = function(file) {
-                                            write.csv(clickData(), file, row.names = FALSE)
-                                          }
+                                         content = function(file) {
+                                           write.csv(clickData(), file, row.names = FALSE)
+                                         }
   )
   #download the plots
   output$downloadPlot1 <- downloadHandler(
@@ -111,4 +139,40 @@ shinyServer(function(input, output, session) {
   output$table <- renderTable({protData()})
   output$table2 <- renderTable({clickData()})
   
+  
+  #generate tree plots
+  output$plot4 <-
+    renderPlot({
+    protdata <- protDataP3()
+    if(input$treetype == "Classification - Protein Class")
+    {
+      classtree <- rpart(classification ~ structureMolecularWeight + phValue + densityPercentSol + densityMatthews,
+                         method = input$method,data=protdata)
+      rpart.plot(classtree,box.palette="RdBu", shadow.col="gray", nn=TRUE) 
+    }
+    else if(input$treetype == "Regression - Matthews")
+    {
+      regtree <- rpart(densityMatthews ~ structureMolecularWeight + phValue + densityPercentSol, method = input$method, data = protdata)
+      rpart.plot(regtree,box.palette="RdBu", shadow.col="gray", nn=TRUE)
+    }
+    else if(input$treetype == "Regression - Residue Count")
+    {
+      regtree <- rpart(residueCount ~ structureMolecularWeight + phValue + densityPercentSol + densityMatthews, method = input$method, data = protdata)
+      rpart.plot(regtree,box.palette="RdBu", shadow.col="gray", nn=TRUE)
+      
+    }
   })
+  
+  output$plot3 <- renderPlot({
+    protdata <- protDataP3()
+    a <- ggplot(protdata, aes(x = get(input$xvar), y = get(input$yvar)))
+    a + geom_point() + xlab(input$xvar) + ylab(input$yvar) + geom_smooth(method = "lm")
+  })
+  
+  output$regpreview <- renderText({
+    protdata <- protDataP3()
+    fit <- lm(structureMolecularWeight ~ residueCount, data = protdata)
+    fitPred <- predict(fit, newdata = data.frame(residueCount = input$variableinput))
+    suppressWarnings(paste("The predicted variable of",input$yvar, "for the given",input$xvar,"is",fitPred, sep = " "))
+  })
+})
