@@ -13,14 +13,14 @@ shinyServer(function(input, output, session) {
   
   #obtains the dataset
   protData <- reactive({
-    pdbdf <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsNwbLV3IqdGxOrtzA59jwoKcPzI7Rks5cDmMSwA%3D%3D")%>% 
+    pdbdf <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsN_rpt5sHVQxAeZ5Xfs9iUGTtkpQrks5cF88TwA%3D%3D")%>% 
     filter(classification == input$classification) %>% 
       filter(structureMolecularWeight  < input$MW) %>%
         filter(resolution <= input$MR)
   })
   #dataset2
   protDataP3 <- reactive({
-    pdbDF1 <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsNwbLV3IqdGxOrtzA59jwoKcPzI7Rks5cDmMSwA%3D%3D")
+    pdbDF1 <- read_csv("https://raw.github.ncsu.edu/caramsla/Project2Repository/master/pdbdf.csv?token=AAAsN_rpt5sHVQxAeZ5Xfs9iUGTtkpQrks5cF88TwA%3D%3D")
     pdbDF1$classification <- as.factor(pdbDF1$classification)
     pdbDF1 <- pdbDF1[!is.na(pdbDF1$structureMolecularWeight), ]
     pdbDF1 <- pdbDF1[!is.na(pdbDF1$phValue), ]
